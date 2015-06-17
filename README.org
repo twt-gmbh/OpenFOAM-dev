@@ -1,11 +1,10 @@
 #                            -*- mode: org; -*-
 #
 #+TITLE:                README for OpenFOAM-dev
-#+AUTHOR:               The OpenFOAM Foundation
-#+DATE:                     9th March 2015
-#+LINK:                  http://www.openfoam.org
-#+OPTIONS: author:nil ^:{}
-# Copyright (c) 2015 OpenFOAM Foundation.
+
+This is the fork of OpenFOAM-dev at [[https://github.com/twt-gmbh/OpenFOAM-dev]].
+
+The following is taken from the original =README.org=:
 
 * About OpenFOAM
   OpenFOAM is a free, open source computational fluid dynamics (CFD) software
