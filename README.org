@@ -3,6 +3,8 @@
 
 This is the fork of OpenFOAM-dev at [[https://github.com/twt-gmbh/OpenFOAM-dev]].
 
+For more information cf. our [[https://github.com/twt-gmbh/OpenFOAM-dev/wiki][wiki]].
+
 The following is taken from the original =README.org=:
 
 * About OpenFOAM
