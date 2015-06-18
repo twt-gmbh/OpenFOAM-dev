@@ -1,3 +1,4 @@
 viewFactorsGen.C
+VisibilityIO.C
 
 EXE = $(FOAM_APPBIN)/viewFactorsGen

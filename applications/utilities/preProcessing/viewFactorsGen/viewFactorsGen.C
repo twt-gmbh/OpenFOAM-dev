@@ -35,6 +35,20 @@ Description
     volScalarField (radiative flux) when is greyDiffusiveRadiationViewFactor
     otherwise they are not included.
 
+    *NEW* Special options for the operating mode:
+        -mode raytracing     Use raytracing to estimate the visibility of coarse
+                             faces and generate F. (This is the default.)
+        -mode writeScene     Write the geometry to be used for visibility testing
+                             and quit. Generates two .obj files:
+                             - visibilityTestSurface.obj contains the detailed
+                               surface and coarse face labels
+                             - visibilityTestPoints.obj contains the coarse
+                               face centres and surface normals
+                             (Not applicable for parrun.)
+        -mode readVisibility Read visibility from binary file "visibility"
+                             and generate F.
+                             (Not applicable for parrun.)
+
 \*---------------------------------------------------------------------------*/
 
 #include "argList.H"
@@ -53,9 +67,16 @@ Description
 #include "scalarMatrices.H"
 #include "scalarListIOList.H"
 
-using namespace Foam;
+// *NEW*: support external visibility tests
+#include <iterator>
+#include <set>
+#include <functional>
+#include <iomanip>
+#include <assert.h>
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include <ofgen/VisibilityIO.h>
+
+using namespace Foam;
 
 triSurface triangulate
 (
@@ -241,15 +262,291 @@ void insertMatrixElements
     }
 }
 
+/**
+ * *NEW* Write out the meshes to curdir that can be processed externally:
+ * visibilityTestPoints.obj contains the starting points of @ref{shootRays}
+ * visiblityTestSurface.obj contains the faces of the surface mesh that are checked for intersection by @ref{shootRays}
+ * @param localCoarseCf the ray starting points on the coarse mesh
+ * @param surfacesMesh the fine surface mesh
+ * @param triSurfaceToAgglom labels to be used (each label to be reported once per test point)
+ */
+void writeVisibilityMeshes( const List<point>& localCoarseCf,
+							const List<point>& localCoarseSf,
+							const triSurface& surfacesMesh,
+							const labelList &triSurfaceToAgglom )
+{
+	if (Pstream::parRun())
+	{
+		FatalErrorIn( "writeVisibilityMeshes" )
+				<< "Parallel run is not supported yet, only local surfaces can be rendered"
+				<< abort( FatalError );
+	}
+
+	// Limit the precision as ParaView had problems reading near zero (double precision) coordinates
+	const int precision = 6;
+
+	// write the surface mesh: vertices
+	const char *sVisibilityTestSurface = "visibilityTestSurface.obj";
+	std::ofstream ofsVisibilityTestSurface( sVisibilityTestSurface );
+	ofsVisibilityTestSurface << std::fixed << std::setprecision( precision );
+	const Foam::Field<Foam::Vector<scalar> > vertices =
+			surfacesMesh.localPoints();
+	Pout << "Writing " << vertices.size() << " surface vertices to "
+			<< sVisibilityTestSurface << endl;
+	for (auto vertex : vertices)
+	{
+		ofsVisibilityTestSurface << "v " << vertex.x() << ' ' << vertex.y()
+				<< ' ' << vertex.z() << "\n";
+	}
+
+	// write the surface mesh: faces
+	const Foam::List<Foam::labelledTri> faces = surfacesMesh.localFaces();
+	Pout << "Writing " << faces.size() << " surface faces to "
+			<< sVisibilityTestSurface << endl;
+	for (auto face : faces)
+	{
+		ofsVisibilityTestSurface << "f";
+		for (auto vertex : face)
+		{
+			assert( vertex < vertices.size() );
+			ofsVisibilityTestSurface << ' ' << (vertex + 1);
+		}
+		ofsVisibilityTestSurface << "\n";
+	}
+
+	// write the surface mesh: face normals (not in the obj spec)
+	auto normals = surfacesMesh.faceNormals();
+	Pout << "Writing " << normals.size() << " face normals to "
+			<< sVisibilityTestSurface << endl;
+	for (auto normal : normals)
+	{
+		ofsVisibilityTestSurface << "fn " << normal.x() << ' ' << normal.y()
+				<< ' ' << normal.z() << "\n";
+	}
+
+	// write the surface mesh: global coarse face labels (not in the obj spec)
+	Pout << "Writing " << triSurfaceToAgglom.size() << " face labels to "
+			<< sVisibilityTestSurface << endl;
+	for (auto label : triSurfaceToAgglom)
+	{
+		ofsVisibilityTestSurface << "fl " << label << "\n";
+	}
+
+	ofsVisibilityTestSurface.close();
+
+	// write the points
+	const char* sVisibilityTestPoints = "visibilityTestPoints.obj";
+	std::ofstream ofsVisibilityTestPoints( sVisibilityTestPoints );
+	ofsVisibilityTestPoints << std::fixed << std::setprecision( precision );
+	Pout << "Writing " << localCoarseCf.size()
+			<< " visibility test points and normals to "
+			<< sVisibilityTestPoints << endl;
+
+	for (int i = 0; i < localCoarseSf.size(); i++)
+	{
+		const point p = localCoarseCf[i];
+		const point n = -localCoarseSf[i] / mag( localCoarseSf[i] );
+
+		ofsVisibilityTestPoints << "v " << p[0] << ' ' << p[1] << ' ' << p[2]
+				<< "\n";
+		ofsVisibilityTestPoints << "vn " << n[0] << ' ' << n[1] << ' ' << n[2]
+				<< "\n";
+
+		// if you want to visualize that, add lines into the origin:
+
+		//ofsVisibilityTestPoints << "v 0.0 0.0 0.0\n";
+		//ofsVisibilityTestPoints << "l " << (i * 2 + 1) << ' ' << (i * 2 + 2) << "\n";
+	}
+}
+
+/**
+ * *NEW* Emulate behaviour of @ref{shootRays}.
+ * Caveats:
+ *   The coarse mesh has one poly face per agglom.
+ *   Fine and coarse patches have the same id.
+ *   The region name of a triangle only contains the local patch id, not the global one.
+ * @param rayStartFace the local indices of the ray start faces
+ * @param rayEndFace the global indices of the ray end faces
+ */
+void getVisibleCoarsePairs(
+		label nLocalCoarseFaces,
+		//const labelListIOList& finalAgglom,
+		const globalIndex& globalNumbering,
+		const polyBoundaryMesh& coarsePatches,
+		const labelList &viewFactorsPatches, const labelList &compactFaceOffset,
+		const labelList& triSurfaceToAgglom, DynamicList<label>& rayStartFace,
+		DynamicList<label>& rayEndFace )
+{
+	if (Pstream::parRun())
+	{
+		FatalErrorIn( "getVisibleCoarsePairs" )
+				<< "Parallel run is not supported yet, only local viewFactorsPatches can be considered"
+				<< abort( FatalError );
+	}
+
+	// read fine surface mesh visibility
+	Foam::Info << "Loading visibility ..." << endl;
+	std::ifstream ifsVisibility( "visibility",
+								 std::ios::in | std::ios::binary );
+	if (!ifsVisibility.good())
+	{
+		SeriousError << "Error opening visibility" << endl;
+	}
+	ofgen::Visibility visibility = ofgen::VisibilityIO::read( ifsVisibility );
+	Foam::Info << "... successful" << endl;
+
+	// sanity check that the visibility info fits to the scene data
+	if (static_cast< label >( visibility.size() ) != nLocalCoarseFaces)
+	{
+		FatalErrorIn( "getVisiblePairs" ) << "Expected " << nLocalCoarseFaces
+				<< " test points" << abort( FatalError );
+	}
+
+	// visible patches that have been skipped because no view factors should be calculated for them
+	std::set < word > skippedPatches;
+
+	// for each "ray" start
+	for (unsigned int iLocalCoarseStartFace = 0;
+			iLocalCoarseStartFace < visibility.size(); iLocalCoarseStartFace++)
+	{
+		const ofgen::VisibleLabels &visible = visibility[iLocalCoarseStartFace];
+		label iGlobalCoarseStartFace = globalNumbering.toGlobal(
+				Pstream::myProcNo(), iLocalCoarseStartFace );
+
+		// determine set of unique "ray" end ids
+		std::set < label > globalEndIds;
+		for (const unsigned int &iGlobalCoarseEndFace : visible.labels)
+		{
+			// skip if fine start and fine end face are in the same agglom
+			if (static_cast< int >( iGlobalCoarseEndFace ) == iGlobalCoarseStartFace)
+			{
+				continue;
+			}
+
+			// skip if end face does not belong to a viewFactorsPatch - this only works on 1 processor!
+			label iLocalCoarseEndFace = iGlobalCoarseEndFace;
+			label iEndPatch;
+			for (iEndPatch = coarsePatches.size() - 1; iEndPatch >= 0;
+					iEndPatch--)
+			{
+				if (coarsePatches[iEndPatch].start() <= iLocalCoarseEndFace)
+				{
+					break;
+				}
+			}
+			if (iEndPatch < 0)
+			{
+				FatalErrorIn( "getVisiblePairs" )
+						<< "Error in mapping between faces and patches"
+						<< abort( FatalError );
+			}
+			if (iLocalCoarseEndFace
+					>= coarsePatches[iEndPatch].start()
+							+ coarsePatches[iEndPatch].size())
+			{
+				FatalErrorIn( "getVisiblePairs" )
+						<< "Patch not found for visible coarse face "
+						<< iLocalCoarseEndFace << abort( FatalError );
+			}
+			label iViewFactorsPatch = Foam::findIndex( viewFactorsPatches,
+													   iEndPatch, 0 );
+			if (iViewFactorsPatch < 0)
+			{
+				skippedPatches.insert( coarsePatches[iEndPatch].name() );
+				continue;
+			}
+
+			label iCompactEndFace = iGlobalCoarseEndFace
+					- compactFaceOffset[iViewFactorsPatch];
+//			Info << "Face / patch: " << iGlobalCoarseEndFace << " ("
+//					<< iCompactEndFace << ") / " << coarsePatches[iEndPatch].name()
+//					<< "\n";
+			assert( iCompactEndFace < nLocalCoarseFaces );
+			globalEndIds.insert( iCompactEndFace );
+		} // iGlobalCoarseEndFace
+
+		for (label iGlobalEndTriangle : globalEndIds)
+		{
+			rayStartFace.append( iLocalCoarseStartFace );
+			rayEndFace.append( iGlobalEndTriangle );
+		}
+	} // iLocalCoarseStartFace
+
+	if (!skippedPatches.empty())
+	{
+		std::cerr
+				<< "Warning: These patches are visible from view factor patches, but are not included in the view factor matrix: ";
+		std::copy( skippedPatches.begin(), skippedPatches.end(),
+				   std::ostream_iterator < word > (std::cerr, " ") );
+		std::cerr << std::endl;
+	}
+}
+
+void shootRays( const IOdictionary &viewFactorDict,
+				const singleCellFvMesh& coarseMesh,
+				const List<pointField>& remoteCoarseCf,
+				const List<pointField>& remoteCoarseSf,
+				const List<labelField>& remoteCoarseAgg,
+				const globalIndex& globalNumbering,
+				const distributedTriSurfaceMesh& surfacesMesh,
+				DynamicList<label>& rayStartFace,
+				DynamicList<label>& rayEndFace )
+{
+    #include "shootRays.H"
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 int main(int argc, char *argv[])
 {
     #include "addRegionOption.H"
+	Foam::argList::addOption( "mode", "option", "raytracing (default), writeScene or readVisibility" );
     #include "setRootCase.H"
     #include "createTime.H"
     #include "createNamedMesh.H"
+
+	// *NEW* special operating mode options
+	enum
+	{
+		MOD_WRITE, MOD_RAYTRACING, MOD_READ
+	} mode;
+	mode = MOD_RAYTRACING;
+	Foam::word modeOption;
+	if (args.optionReadIfPresent( "mode", modeOption ))
+	{
+		Foam::Info << "mode = " << modeOption << ":" << Foam::endl;
+		if (modeOption == "writeScene")
+		{
+			mode = MOD_WRITE;
+		}
+		else if (modeOption == "raytracing")
+		{
+		}
+		else if (modeOption == "readVisibility")
+		{
+			mode = MOD_READ;
+		}
+		else
+		{
+			Foam::Warning << "unknown option" << abort( FatalError );
+		}
+	}
+	switch (mode)
+	{
+		case MOD_WRITE:
+			Foam::Info << "  only writing geometry for separate visibility test"
+					   << Foam::endl;
+			break;
+		case MOD_READ:
+			Foam::Info
+					<< "  reading visibility results from separate visibility test"
+					<< Foam::endl;
+			break;
+		default:
+			Foam::Info << "  using default raytracing for visibility test"
+					   << Foam::endl;
+			break;
+	}
 
     // Read view factor dictionary
     IOdictionary viewFactorDict
@@ -338,6 +635,10 @@ int main(int argc, char *argv[])
 
     labelList viewFactorsPatches(patches.size());
 
+		// *NEW* compact mapping of coarse faces involved in view factor calculation
+		labelList compactFaceOffset( patches.size() );
+		label nSkippedFaces = 0;
+
     const volScalarField::GeometricBoundaryField& Qrb = Qr.boundaryField();
 
     label count = 0;
@@ -349,10 +650,15 @@ int main(int argc, char *argv[])
         if ((isA<fixedValueFvPatchScalarField>(QrpI)) && (pp.size() > 0))
         {
             viewFactorsPatches[count] = QrpI.patch().index();
+						compactFaceOffset[count] = nSkippedFaces;
             nCoarseFaces += coarsePatches[patchI].size();
             nFineFaces += patches[patchI].size();
             count ++;
         }
+				else
+				{
+						nSkippedFaces += coarsePatches[patchI].size();
+				}
     }
 
     viewFactorsPatches.resize(count);
@@ -489,7 +795,32 @@ int main(int argc, char *argv[])
     // Return rayStartFace in local index andrayEndFace in global index
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    #include "shootRays.H"
+    // *NEW*: the 3 operating modes
+		switch (mode)
+		{
+				case MOD_WRITE:
+						writeVisibilityMeshes( localCoarseCf, localCoarseSf, localSurface,
+												 triSurfaceToAgglom );
+						exit( 0 );
+						break;
+				case MOD_RAYTRACING:
+						shootRays( viewFactorDict, coarseMesh, remoteCoarseCf,
+									 remoteCoarseSf, remoteCoarseAgg, globalNumbering,
+									 surfacesMesh, rayStartFace, rayEndFace );
+						break;
+				case MOD_READ:
+						getVisibleCoarsePairs( nCoarseFaces, globalNumbering, coarsePatches,
+												 viewFactorsPatches, compactFaceOffset,
+												 triSurfaceToAgglom, rayStartFace,
+												 rayEndFace );
+						break;
+				default:
+						assert( false );
+		}
+		// The processor continuous calculating the columns (or rows) of the global
+		// F matrix that belong to the coarse ids in rayStartFace.
+		// Therefore it needs the local coarse ids of rayStartFace and the global
+		// coarse ids of rayEndFace.
 
     // Calculate number of visible faces from local index
     labelList nVisibleFaceFaces(nCoarseFaces, 0);

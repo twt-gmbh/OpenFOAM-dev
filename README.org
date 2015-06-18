@@ -1,5 +1,4 @@
 #                            -*- mode: org; -*-
-#
 #+TITLE:                README for OpenFOAM-dev
 
 This is the fork of OpenFOAM-dev at [[https://github.com/twt-gmbh/OpenFOAM-dev]].
