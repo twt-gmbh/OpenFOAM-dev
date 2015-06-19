@@ -1,13 +1,15 @@
 #                            -*- mode: org; -*-
-#+TITLE:                README for OpenFOAM-dev
+#+TITLE: twtFOAM
 
-This is the fork of OpenFOAM-dev at [[https://github.com/twt-gmbh/OpenFOAM-dev]].
+This is the fork of OpenFOAM-dev at [[https://github.com/twt-gmbh/twtFOAM]].
 
-For more information cf. our [[https://github.com/twt-gmbh/OpenFOAM-dev/wiki][wiki]].
+For more information cf. our [[https://github.com/twt-gmbh/twtFOAM/wiki][wiki]].
 
 The following is taken from the original =README.org=:
 
-* About OpenFOAM
+* README for OpenFOAM-dev
+
+** About OpenFOAM
   OpenFOAM is a free, open source computational fluid dynamics (CFD) software
   package released by the OpenFOAM Foundation. It has a large user base across
   most areas of engineering and science, from both commercial and academic
@@ -15,7 +17,7 @@ The following is taken from the original =README.org=:
   from complex fluid flows involving chemical reactions, turbulence and heat
   transfer, to solid dynamics and electromagnetics.
 
-* Copyright
+** Copyright
   OpenFOAM is free software: you can redistribute it and/or modify it under the
   terms of the GNU General Public License as published by the Free Software
   Foundation, either version 3 of the License, or (at your option) any later
@@ -23,8 +25,8 @@ The following is taken from the original =README.org=:
   [[http://www.gnu.org/licenses/]], for a description of the GNU General Public
   License terms under which you can copy the files.
 
-* [[http://www.OpenFOAM.org/git.php][Download and installation instructions]]
-* [[http://www.OpenFOAM.org/docs][Documentation]]
-* [[http://OpenFOAM.github.io/Documentation-dev/html][Source code documentation]]
-* [[http://www.OpenFOAM.org/bugs][Reporting bugs in OpenFOAM]]
-* [[http://www.openfoam.org/contact][Contacting the OpenFOAM Foundation]]
+** [[http://www.OpenFOAM.org/git.php][Download and installation instructions]]
+** [[http://www.OpenFOAM.org/docs][Documentation]]
+** [[http://OpenFOAM.github.io/Documentation-dev/html][Source code documentation]]
+** [[http://www.OpenFOAM.org/bugs][Reporting bugs in OpenFOAM]]
+** [[http://www.openfoam.org/contact][Contacting the OpenFOAM Foundation]]
