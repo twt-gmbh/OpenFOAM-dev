@@ -33,7 +33,19 @@ namespace ofgen
 	typedef std::vector<VisibleLabels> Visibility;
 
 	/**
-	 * Helper to read and write visibilities
+	 * Helper to read and write visibilities.
+	 *
+	 * The binary format depends on the arch type and is as follows:
+	 * (file header:)
+	 *   magic                char[16]
+	 *   version              float
+	 *   # of test points     uint
+	 * (for each test point:)
+	 *   test point id        uint
+	 *   test point coords    float[3]
+	 *   # of visible labels  uint
+	 *   visible labels       uint[# of visible labels]
+	 * (file tail: copy of the file header)
 	 */
 	class VisibilityIO
 	{
