@@ -18,7 +18,9 @@
 
     dimensionedScalar rhoInfValue
     (
-        laminarTransport.lookup("rhoInf")
+        "rhoInf",
+        dimDensity,
+        laminarTransport
     );
 
     volScalarField rhoInf

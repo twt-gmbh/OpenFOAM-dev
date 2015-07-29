@@ -25,12 +25,8 @@ Class
     Foam::HeatAndMassTransferPhaseSystem
 
 Description
-    Class which models interfacial heat and mass transfer between a number of
-    phases. Mass is transferred to or from a phase according to a composition
-    model at the surface of another phase. Heat is transferred from a phase to
-    an interfacial temperature. The interface temperature is calculated such
-    that the net rate at which the heat is transferred to the interface is
-    equal to the latent heat consumed by the mass transfer.
+    Base class to support interfacial heat and mass transfer between a number
+    of phases.
 
 SourceFiles
     HeatAndMassTransferPhaseSystem.C
@@ -53,7 +49,6 @@ class BlendedInterfacialModel;
 class blendingMethod;
 class heatTransferModel;
 class massTransferModel;
-class interfaceCompositionModel;
 
 /*---------------------------------------------------------------------------*\
                  Class HeatAndMassTransferPhaseSystem Declaration
@@ -88,13 +83,6 @@ protected:
             phasePairKey::hash
         > massTransferModelTable;
 
-        typedef HashTable
-        <
-            autoPtr<interfaceCompositionModel>,
-            phasePairKey,
-            phasePairKey::hash
-        > interfaceCompositionModelTable;
-
 
     // Protected data
 
@@ -116,9 +104,6 @@ protected:
 
             //- Mass transfer models
             massTransferModelTable massTransferModels_;
-
-            //- Interface composition models
-            interfaceCompositionModelTable interfaceCompositionModels_;
 
 
 public:
@@ -142,10 +127,8 @@ public:
         ) const;
 
         //- Return the momentum transfer matrices
-        virtual autoPtr<phaseSystem::momentumTransferTable> momentumTransfer
-        (
-            IOMRFZoneList& mrfZones
-        ) const;
+        virtual autoPtr<phaseSystem::momentumTransferTable>
+            momentumTransfer() const;
 
         //- Return the heat transfer matrices
         virtual autoPtr<phaseSystem::heatTransferTable>
@@ -153,10 +136,10 @@ public:
 
         //- Return the mass transfer matrices
         virtual autoPtr<phaseSystem::massTransferTable>
-            massTransfer() const;
+            massTransfer() const = 0;
 
         //- Correct the thermodynamics
-        virtual void correctThermo();
+        virtual void correctThermo() = 0;
 
         //- Read base phaseProperties dictionary
         virtual bool read();

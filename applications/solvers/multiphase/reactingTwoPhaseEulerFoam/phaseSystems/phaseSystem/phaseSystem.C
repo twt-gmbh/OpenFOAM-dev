@@ -185,19 +185,8 @@ Foam::phaseSystem::phaseSystem
         dimensionedScalar("dpdt", dimPressure/dimTime, 0)
     ),
 
-    dgdt_
-    (
-        IOobject
-        (
-            "dgdt",
-            mesh.time().timeName(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::AUTO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("dgdt", dimless/dimTime, 0)
-    )
+    MRF_(mesh_),
+    fvOptions_(mesh_)
 {
     // Blending methods
     forAllConstIter(dictionary, subDict("blending"), iter)

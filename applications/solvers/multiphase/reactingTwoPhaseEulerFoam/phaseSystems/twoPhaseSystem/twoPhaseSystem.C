@@ -170,37 +170,68 @@ void Foam::twoPhaseSystem::solve()
     volScalarField& alpha1 = phase1_;
     volScalarField& alpha2 = phase2_;
 
-    const surfaceScalarField& phi = this->phi();
-    const surfaceScalarField& phi1 = phase1_.phi();
-    const surfaceScalarField& phi2 = phase2_.phi();
-
-    const volScalarField& dgdt = this->dgdt();
-
     const dictionary& alphaControls = mesh.solverDict(alpha1.name());
 
     label nAlphaSubCycles(readLabel(alphaControls.lookup("nAlphaSubCycles")));
     label nAlphaCorr(readLabel(alphaControls.lookup("nAlphaCorr")));
 
+    bool LTS = fv::localEulerDdt::enabled(mesh);
+
     word alphaScheme("div(phi," + alpha1.name() + ')');
     word alpharScheme("div(phir," + alpha1.name() + ')');
 
-    alpha1.correctBoundaryConditions();
+    const surfaceScalarField& phi = this->phi();
+    const surfaceScalarField& phi1 = phase1_.phi();
+    const surfaceScalarField& phi2 = phase2_.phi();
 
+    // Construct the dilatation rate source term
+    tmp<volScalarField::DimensionedInternalField> tdgdt;
+
+    if (phase1_.compressible() && phase2_.compressible())
+    {
+        tdgdt =
+        (
+            alpha2.dimensionedInternalField()
+           *phase1_.divU().dimensionedInternalField()
+          - alpha1.dimensionedInternalField()
+           *phase2_.divU().dimensionedInternalField()
+        );
+    }
+    else if (phase1_.compressible())
+    {
+        tdgdt =
+        (
+            alpha2.dimensionedInternalField()
+           *phase1_.divU().dimensionedInternalField()
+        );
+    }
+    else if (phase2_.compressible())
+    {
+        tdgdt =
+        (
+          - alpha1.dimensionedInternalField()
+           *phase2_.divU().dimensionedInternalField()
+        );
+    }
+
+    alpha1.correctBoundaryConditions();
+    surfaceScalarField alpha1f(fvc::interpolate(max(alpha1, scalar(0))));
 
     surfaceScalarField phic("phic", phi);
     surfaceScalarField phir("phir", phi1 - phi2);
 
-    surfaceScalarField alpha1f(fvc::interpolate(max(alpha1, scalar(0))));
+    tmp<surfaceScalarField> alphaDbyA;
 
-    if (pPrimeByA_.valid())
+    if (notNull(phase1_.DbyA()) && notNull(phase2_.DbyA()))
     {
-        surfaceScalarField phiP
-        (
-            pPrimeByA_()*fvc::snGrad(alpha1, "bounded")*mesh_.magSf()
-        );
+        surfaceScalarField DbyA(phase1_.DbyA() + phase2_.DbyA());
 
-        phic += alpha1f*phiP;
-        phir += phiP;
+        alphaDbyA =
+            fvc::interpolate(max(alpha1, scalar(0)))
+           *fvc::interpolate(max(alpha2, scalar(0)))
+           *DbyA;
+
+        phir += DbyA*fvc::snGrad(alpha1, "bounded")*mesh_.magSf();
     }
 
     for (int acorr=0; acorr<nAlphaCorr; acorr++)
@@ -214,7 +245,7 @@ void Foam::twoPhaseSystem::solve()
                 mesh
             ),
             mesh,
-            dimensionedScalar("Sp", dgdt.dimensions(), 0.0)
+            dimensionedScalar("Sp", dimless/dimTime, 0.0)
         );
 
         volScalarField::DimensionedInternalField Su
@@ -230,16 +261,21 @@ void Foam::twoPhaseSystem::solve()
             fvc::div(phi)*min(alpha1, scalar(1))
         );
 
-        forAll(dgdt, celli)
+        if (tdgdt.valid())
         {
-            if (dgdt[celli] > 0.0)
+            scalarField& dgdt = tdgdt();
+
+            forAll(dgdt, celli)
             {
-                Sp[celli] -= dgdt[celli]/max(1.0 - alpha1[celli], 1e-4);
-                Su[celli] += dgdt[celli]/max(1.0 - alpha1[celli], 1e-4);
-            }
-            else if (dgdt[celli] < 0.0)
-            {
-                Sp[celli] += dgdt[celli]/max(alpha1[celli], 1e-4);
+                if (dgdt[celli] > 0.0)
+                {
+                    Sp[celli] -= dgdt[celli]/max(1.0 - alpha1[celli], 1e-4);
+                    Su[celli] += dgdt[celli]/max(1.0 - alpha1[celli], 1e-4);
+                }
+                else if (dgdt[celli] < 0.0)
+                {
+                    Sp[celli] += dgdt[celli]/max(alpha1[celli], 1e-4);
+                }
             }
         }
 
@@ -282,6 +318,14 @@ void Foam::twoPhaseSystem::solve()
 
         if (nAlphaSubCycles > 1)
         {
+            tmp<volScalarField> trSubDeltaT;
+
+            if (LTS)
+            {
+                trSubDeltaT =
+                    fv::localEulerDdt::localRSubDeltaT(mesh, nAlphaSubCycles);
+            }
+
             for
             (
                 subCycle<volScalarField> alphaSubCycle(alpha1, nAlphaSubCycles);
@@ -331,12 +375,12 @@ void Foam::twoPhaseSystem::solve()
             phase1_.alphaPhi() = alphaPhic1;
         }
 
-        if (pPrimeByA_.valid())
+        if (alphaDbyA.valid())
         {
             fvScalarMatrix alpha1Eqn
             (
                 fvm::ddt(alpha1) - fvc::ddt(alpha1)
-              - fvm::laplacian(alpha1f*pPrimeByA_(), alpha1, "bounded")
+              - fvm::laplacian(alphaDbyA, alpha1, "bounded")
             );
 
             alpha1Eqn.relax();

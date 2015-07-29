@@ -83,6 +83,7 @@ public:
     //- Runtime type information
     ClassName("phaseModel");
 
+
     // Declare runtime construction
 
         declareRunTimeSelectionTable
@@ -163,6 +164,30 @@ public:
         virtual bool read();
 
 
+        // Compressibility (variable density)
+
+            //- Return true if the phase is compressible otherwise false
+            virtual bool compressible() const;
+
+            //- Return the phase dilatation rate (d(alpha)/dt + div(alpha*phi))
+            virtual const volScalarField& divU() const;
+
+            //- Set the phase dilatation rate (d(alpha)/dt + div(alpha*phi))
+            virtual void divU(const volScalarField& divU);
+
+            //- Return the phase kinetic energy
+            virtual const volScalarField& K() const;
+
+
+        // Implicit phase pressure and dispersion support
+
+            //- Return the phase diffusivity divided by the momentum coefficient
+            virtual const surfaceScalarField& DbyA() const;
+
+            //- Set the phase diffusivity divided by the momentum coefficient
+            virtual void DbyA(const tmp<surfaceScalarField>& DbyA);
+
+
         // Thermo
 
             //- Return const access to the thermophysical model
@@ -195,9 +220,6 @@ public:
 
             //- Constant access the continuity error
             virtual tmp<volScalarField> continuityError() const = 0;
-
-            //- Access the continuity error
-            virtual volScalarField& continuityError() = 0;
 
             //- Constant access the volumetric flux
             virtual tmp<surfaceScalarField> phi() const = 0;

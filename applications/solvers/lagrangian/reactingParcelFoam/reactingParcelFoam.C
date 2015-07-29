@@ -39,6 +39,8 @@ Description
 #include "fvIOoptionList.H"
 #include "SLGThermo.H"
 #include "pimpleControl.H"
+#include "localEulerDdtScheme.H"
+#include "fvcSmooth.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -52,15 +54,20 @@ int main(int argc, char *argv[])
 
     pimpleControl pimple(mesh);
 
+    #include "createTimeControls.H"
+    #include "createRDeltaT.H"
+    #include "initContinuityErrs.H"
     #include "createFields.H"
     #include "createRadiationModel.H"
     #include "createClouds.H"
     #include "createMRF.H"
     #include "createFvOptions.H"
-    #include "initContinuityErrs.H"
-    #include "readTimeControls.H"
-    #include "compressibleCourantNo.H"
-    #include "setInitialDeltaT.H"
+
+    if (!LTS)
+    {
+        #include "CourantNo.H"
+        #include "setInitialDeltaT.H"
+    }
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -69,14 +76,23 @@ int main(int argc, char *argv[])
     while (runTime.run())
     {
         #include "readTimeControls.H"
-        #include "compressibleCourantNo.H"
-        #include "setDeltaT.H"
+
+        if (!LTS)
+        {
+            #include "compressibleCourantNo.H"
+            #include "setDeltaT.H"
+        }
 
         runTime++;
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
         parcels.evolve();
+
+        if (LTS)
+        {
+            #include "setRDeltaT.H"
+        }
 
         #include "rhoEqn.H"
 

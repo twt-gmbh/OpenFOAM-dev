@@ -3,7 +3,7 @@
 # =========                 |
 # \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
 #  \\    /   O peration     |
-#   \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+#   \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
 #    \\/     M anipulation  |
 #------------------------------------------------------------------------------
 # License
@@ -106,7 +106,6 @@ divSchemes
 laplacianSchemes { default Gauss linear corrected; }
 interpolationSchemes { default linear; }
 snGradSchemes { default corrected; }
-fluxRequired { default yes; }
 EOF
 }
 
@@ -140,7 +139,6 @@ FV_SCHEMES=\
     laplacianScheme \
     interpolationScheme \
     snGradScheme \
-    fluxRequired \
 "
 SCHEMES_FILE="FvSchemes"
 SCHEMES_TEMP="FvSchemes.temp"

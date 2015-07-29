@@ -69,11 +69,12 @@ tmp<surfaceScalarField> Ff2;
         fvc::interpolate(D + phase2.turbulence().pPrime())
     );
 
-    // Cache the net diffusivity for implicit diffusion treatment in the
+    // Cache the phase diffusivities for implicit treatment in the
     // phase-fraction equation
     if (implicitPhasePressure)
     {
-        fluid.pPrimeByA() = rAUf1*Df1 + rAUf2*Df2;
+        phase1.DbyA(rAUf1*Df1);
+        phase2.DbyA(rAUf2*Df2);
     }
 
     // Lift and wall-lubrication forces
@@ -93,7 +94,7 @@ tmp<surfaceScalarField> Ff2;
 while (pimple.correct())
 {
     // Update continuity errors due to temperature changes
-    #include "correctContErrs.H"
+    fluid.correct();
 
     surfaceScalarField rhof1(fvc::interpolate(rho1));
     surfaceScalarField rhof2(fvc::interpolate(rho2));
@@ -323,11 +324,15 @@ while (pimple.correct())
             U2.correctBoundaryConditions();
             fvOptions.correct(U2);
 
-            fluid.dgdt() =
-            (
-                alpha1*(pEqnComp2 & p_rgh)
-              - alpha2*(pEqnComp1 & p_rgh)
-            );
+            // Set the phase dilatation rates
+            if (phase1.compressible())
+            {
+                phase1.divU(-pEqnComp1 & p_rgh);
+            }
+            if (phase2.compressible())
+            {
+                phase2.divU(-pEqnComp2 & p_rgh);
+            }
         }
     }
 

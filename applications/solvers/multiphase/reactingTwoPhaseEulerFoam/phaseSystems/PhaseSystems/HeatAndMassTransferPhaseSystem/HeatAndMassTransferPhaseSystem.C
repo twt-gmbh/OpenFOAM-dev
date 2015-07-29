@@ -28,7 +28,6 @@ License
 #include "BlendedInterfacialModel.H"
 #include "heatTransferModel.H"
 #include "massTransferModel.H"
-#include "interfaceCompositionModel.H"
 
 #include "HashPtrTable.H"
 
@@ -57,12 +56,6 @@ HeatAndMassTransferPhaseSystem
     (
         "massTransfer",
         massTransferModels_
-    );
-
-    this->generatePairsAndSubModels
-    (
-        "interfaceComposition",
-        interfaceCompositionModels_
     );
 
     forAllConstIter
@@ -139,9 +132,11 @@ HeatAndMassTransferPhaseSystem
                 (
                     H1 + H2,
                     dimensionedScalar("small", heatTransferModel::dimK, SMALL)
-                )
+                ),
+                zeroGradientFvPatchScalarField::typeName
             )
         );
+        Tf_[pair]->correctBoundaryConditions();
     }
 }
 
@@ -171,13 +166,10 @@ Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::dmdt
 
 template<class BasePhaseSystem>
 Foam::autoPtr<Foam::phaseSystem::momentumTransferTable>
-Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::momentumTransfer
-(
-    IOMRFZoneList& MRF
-) const
+Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::momentumTransfer() const
 {
     autoPtr<phaseSystem::momentumTransferTable>
-        eqnsPtr(BasePhaseSystem::momentumTransfer(MRF));
+        eqnsPtr(BasePhaseSystem::momentumTransfer());
 
     phaseSystem::momentumTransferTable& eqns = eqnsPtr();
 
@@ -200,8 +192,8 @@ Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::momentumTransfer
         const volVectorField& U2(pair.phase2().U());
 
         const volScalarField dmdt(this->dmdt(pair));
-        const volScalarField dmdt12(dmdt*pos(dmdt));
-        const volScalarField dmdt21(dmdt*neg(dmdt));
+        const volScalarField dmdt12(posPart(dmdt));
+        const volScalarField dmdt21(negPart(dmdt));
 
         *eqns[pair.phase1().name()] += fvm::Sp(dmdt21, U1) - dmdt21*U2;
         *eqns[pair.phase2().name()] += dmdt12*U1 - fvm::Sp(dmdt12, U2);
@@ -291,44 +283,7 @@ Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::heatTransfer() const
         }
     }
 
-    return eqnsPtr;
-}
-
-
-template<class BasePhaseSystem>
-Foam::autoPtr<Foam::phaseSystem::massTransferTable>
-Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::massTransfer() const
-{
-    // Create a mass transfer matrix for each species of each phase
-    autoPtr<phaseSystem::massTransferTable> eqnsPtr
-    (
-        new phaseSystem::massTransferTable()
-    );
-
-    phaseSystem::massTransferTable& eqns = eqnsPtr();
-
-    forAllConstIter
-    (
-        phaseSystem::phaseModelTable,
-        this->phaseModels_,
-        phaseModelIter
-    )
-    {
-        const phaseModel& phase(phaseModelIter());
-
-        const PtrList<volScalarField>& Yi = phase.Y();
-
-        forAll(Yi, i)
-        {
-            eqns.insert
-            (
-                Yi[i].name(),
-                new fvScalarMatrix(Yi[i], dimMass/dimTime)
-            );
-        }
-    }
-
-    // Reset the interfacial mass flow rates
+    // Source term due to mass trasfer
     forAllConstIter
     (
         phaseSystem::phasePairTable,
@@ -343,210 +298,30 @@ Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::massTransfer() const
             continue;
         }
 
-        *dmdt_[pair] =
-            *dmdtExplicit_[pair];
+        const phaseModel& phase1 = pair.phase1();
+        const phaseModel& phase2 = pair.phase2();
 
-        *dmdtExplicit_[pair] =
-            dimensionedScalar("zero", dimDensity/dimTime, 0);
-    }
+        const volScalarField& he1(phase1.thermo().he());
+        const volScalarField& he2(phase2.thermo().he());
 
-    // Sum up the contribution from each interface composition model
-    forAllConstIter
-    (
-        interfaceCompositionModelTable,
-        interfaceCompositionModels_,
-        interfaceCompositionModelIter
-    )
-    {
-        const interfaceCompositionModel& compositionModel
-        (
-            interfaceCompositionModelIter()
-        );
+        const volScalarField& K1(phase1.K());
+        const volScalarField& K2(phase2.K());
 
-        const phasePair& pair
-        (
-            this->phasePairs_[interfaceCompositionModelIter.key()]
-        );
-        const phaseModel& phase = pair.phase1();
-        const phaseModel& otherPhase = pair.phase2();
-        const phasePairKey key(phase.name(), otherPhase.name());
+        const volScalarField dmdt(this->dmdt(pair));
+        const volScalarField dmdt12(posPart(dmdt));
+        const volScalarField dmdt21(negPart(dmdt));
+        const volScalarField& Tf(*Tf_[pair]);
 
-        const volScalarField& Tf(*Tf_[key]);
+        *eqns[phase1.name()] +=
+            fvm::Sp(dmdt21, he1) + dmdt21*K1
+          - dmdt21*(phase2.thermo().he(phase2.thermo().p(), Tf) + K2);
 
-        volScalarField& dmdtExplicit(*dmdtExplicit_[key]);
-        volScalarField& dmdt(*dmdt_[key]);
-
-        scalar dmdtSign(Pair<word>::compare(dmdt_.find(key).key(), key));
-
-        const volScalarField K
-        (
-            massTransferModels_[key][phase.name()]->K()
-        );
-
-        forAllConstIter
-        (
-            hashedWordList,
-            compositionModel.species(),
-            memberIter
-        )
-        {
-            const word& member = *memberIter;
-
-            const word name
-            (
-                IOobject::groupName(member, phase.name())
-            );
-
-            const word otherName
-            (
-                IOobject::groupName(member, otherPhase.name())
-            );
-
-            const volScalarField KD
-            (
-                K*compositionModel.D(member)
-            );
-
-            const volScalarField Yf
-            (
-                compositionModel.Yf(member, Tf)
-            );
-
-            // Implicit transport through the phase
-            *eqns[name] +=
-                phase.rho()*KD*Yf
-              - fvm::Sp(phase.rho()*KD, eqns[name]->psi());
-
-            // Sum the mass transfer rate
-            dmdtExplicit += dmdtSign*phase.rho()*KD*Yf;
-            dmdt -= dmdtSign*phase.rho()*KD*eqns[name]->psi();
-
-            // Explicit transport out of the other phase
-            if (eqns.found(otherName))
-            {
-                *eqns[otherName] -=
-                    otherPhase.rho()*KD*compositionModel.dY(member, Tf);
-            }
-        }
+        *eqns[phase2.name()] +=
+            dmdt12*(phase1.thermo().he(phase1.thermo().p(), Tf) + K1)
+          - fvm::Sp(dmdt12, he2) - dmdt12*K2;
     }
 
     return eqnsPtr;
-}
-
-
-template<class BasePhaseSystem>
-void Foam::HeatAndMassTransferPhaseSystem<BasePhaseSystem>::correctThermo()
-{
-    BasePhaseSystem::correctThermo();
-
-    // This loop solves for the interface temperatures, Tf, and updates the
-    // interface composition models.
-    //
-    // The rate of heat transfer to the interface must equal the latent heat
-    // consumed at the interface, i.e.:
-    //
-    // H1*(T1 - Tf) + H2*(T2 - Tf) == mDotL
-    //                             == K*rho*(Yfi - Yi)*Li
-    //
-    // Yfi is likely to be a strong non-linear (typically exponential) function
-    // of Tf, so the solution for the temperature is newton-accelerated
-
-    forAllConstIter
-    (
-        phaseSystem::phasePairTable,
-        this->phasePairs_,
-        phasePairIter
-    )
-    {
-        const phasePair& pair(phasePairIter());
-
-        if (pair.ordered())
-        {
-            continue;
-        }
-
-        const phasePairKey key12(pair.first(), pair.second(), true);
-        const phasePairKey key21(pair.second(), pair.first(), true);
-
-        volScalarField H1(heatTransferModels_[pair][pair.first()]->K());
-        volScalarField H2(heatTransferModels_[pair][pair.second()]->K());
-        dimensionedScalar HSmall("small", heatTransferModel::dimK, SMALL);
-
-        volScalarField mDotL
-        (
-            IOobject
-            (
-                "mDotL",
-                this->mesh().time().timeName(),
-                this->mesh()
-            ),
-            this->mesh(),
-            dimensionedScalar("zero", dimEnergy/dimVolume/dimTime, 0)
-        );
-        volScalarField mDotLPrime
-        (
-            IOobject
-            (
-                "mDotLPrime",
-                this->mesh().time().timeName(),
-                this->mesh()
-            ),
-            this->mesh(),
-            dimensionedScalar("zero", mDotL.dimensions()/dimTemperature, 0)
-        );
-
-        volScalarField& Tf = *Tf_[pair];
-
-        // Add latent heats from forward and backward models
-        if (interfaceCompositionModels_.found(key12))
-        {
-            interfaceCompositionModels_[key12]->addMDotL
-            (
-                massTransferModels_[pair][pair.first()]->K(),
-                Tf,
-                mDotL,
-                mDotLPrime
-            );
-        }
-        if (interfaceCompositionModels_.found(key21))
-        {
-            interfaceCompositionModels_[key21]->addMDotL
-            (
-                massTransferModels_[pair][pair.second()]->K(),
-                Tf,
-                mDotL,
-                mDotLPrime
-            );
-        }
-
-        // Update the interface temperature by applying one step of newton's
-        // method to the interface relation
-        Tf -=
-            (
-                H1*(Tf - pair.phase1().thermo().T())
-              + H2*(Tf - pair.phase2().thermo().T())
-              + mDotL
-            )
-           /(
-                max(H1 + H2 + mDotLPrime, HSmall)
-            );
-
-        // Update the interface compositions
-        if (interfaceCompositionModels_.found(key12))
-        {
-            interfaceCompositionModels_[key12]->update(Tf);
-        }
-        if (interfaceCompositionModels_.found(key21))
-        {
-            interfaceCompositionModels_[key21]->update(Tf);
-        }
-
-        Info<< "Tf." << pair.name()
-            << ": min = " << min(Tf.internalField())
-            << ", mean = " << average(Tf.internalField())
-            << ", max = " << max(Tf.internalField())
-            << endl;
-    }
 }
 
 

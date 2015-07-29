@@ -36,6 +36,17 @@ Foam::AnisothermalPhaseModel<BasePhaseModel>::AnisothermalPhaseModel
 )
 :
     BasePhaseModel(fluid, phaseName),
+    divU_
+    (
+        IOobject
+        (
+            IOobject::groupName("divU", this->name()),
+            fluid.mesh().time().timeName(),
+            fluid.mesh()
+        ),
+        fluid.mesh(),
+        dimensionedScalar("divU", dimless/dimTime, 0)
+    ),
     K_
     (
         IOobject
@@ -117,6 +128,37 @@ Foam::AnisothermalPhaseModel<BasePhaseModel>::heEqn()
      ==
         this->Sh()
     );
+}
+
+
+template<class BasePhaseModel>
+bool Foam::AnisothermalPhaseModel<BasePhaseModel>::compressible() const
+{
+    return true;
+}
+
+
+template<class BasePhaseModel>
+const Foam::volScalarField&
+Foam::AnisothermalPhaseModel<BasePhaseModel>::divU() const
+{
+    return divU_;
+}
+
+
+template<class BasePhaseModel>
+void
+Foam::AnisothermalPhaseModel<BasePhaseModel>::divU(const volScalarField& divU)
+{
+    divU_ = divU;
+}
+
+
+template<class BasePhaseModel>
+const Foam::volScalarField&
+Foam::AnisothermalPhaseModel<BasePhaseModel>::K() const
+{
+    return K_;
 }
 
 

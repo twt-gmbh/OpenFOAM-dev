@@ -25,6 +25,7 @@ License
 
 #include "CMULES.H"
 #include "fvcSurfaceIntegrate.H"
+#include "localEulerDdtScheme.H"
 #include "slicedSurfaceFields.H"
 #include "wedgeFvPatch.H"
 #include "syncTools.H"
@@ -87,56 +88,44 @@ void Foam::MULES::correct
 )
 {
     const fvMesh& mesh = psi.mesh();
-    const scalar rDeltaT = 1.0/mesh.time().deltaTValue();
 
-    limitCorr
-    (
-        rDeltaT,
-        rho,
-        psi,
-        phi,
-        phiCorr,
-        Sp,
-        Su,
-        psiMax,
-        psiMin
-    );
+    if (fv::localEulerDdt::enabled(mesh))
+    {
+        const volScalarField& rDeltaT = fv::localEulerDdt::localRDeltaT(mesh);
 
-    correct(rDeltaT, rho, psi, phi, phiCorr, Sp, Su);
-}
+        limitCorr
+        (
+            rDeltaT,
+            rho,
+            psi,
+            phi,
+            phiCorr,
+            Sp,
+            Su,
+            psiMax,
+            psiMin
+        );
+        correct(rDeltaT, rho, psi, phi, phiCorr, Sp, Su);
+    }
+    else
+    {
+        const scalar rDeltaT = 1.0/mesh.time().deltaTValue();
 
+        limitCorr
+        (
+            rDeltaT,
+            rho,
+            psi,
+            phi,
+            phiCorr,
+            Sp,
+            Su,
+            psiMax,
+            psiMin
+        );
 
-template<class RhoType, class SpType, class SuType>
-void Foam::MULES::LTScorrect
-(
-    const RhoType& rho,
-    volScalarField& psi,
-    const surfaceScalarField& phi,
-    surfaceScalarField& phiCorr,
-    const SpType& Sp,
-    const SuType& Su,
-    const scalar psiMax,
-    const scalar psiMin
-)
-{
-    const fvMesh& mesh = psi.mesh();
-
-    const volScalarField& rDeltaT =
-        mesh.objectRegistry::lookupObject<volScalarField>("rSubDeltaT");
-
-    limitCorr
-    (
-        rDeltaT,
-        rho,
-        psi,
-        phi,
-        phiCorr,
-        Sp,
-        Su,
-        psiMax,
-        psiMin
-    );
-    correct(rDeltaT, rho, psi, phi, phiCorr, Sp, Su);
+        correct(rDeltaT, rho, psi, phi, phiCorr, Sp, Su);
+    }
 }
 
 

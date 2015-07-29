@@ -23,14 +23,14 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "mpi.h"
-
 #include "UPstream.H"
 #include "PstreamReduceOps.H"
 #include "OSspecific.H"
 #include "PstreamGlobals.H"
 #include "SubList.H"
 #include "allReduce.H"
+
+#include <mpi.h>
 
 #include <cstring>
 #include <cstdlib>
@@ -304,9 +304,9 @@ void Foam::UPstream::allocatePstreamCommunicator
     if (index == PstreamGlobals::MPIGroups_.size())
     {
         // Extend storage with dummy values
-        MPI_Group newGroup;
+        MPI_Group newGroup = MPI_GROUP_NULL;
         PstreamGlobals::MPIGroups_.append(newGroup);
-        MPI_Comm newComm;
+        MPI_Comm newComm = MPI_COMM_NULL;
         PstreamGlobals::MPICommunicators_.append(newComm);
     }
     else if (index > PstreamGlobals::MPIGroups_.size())

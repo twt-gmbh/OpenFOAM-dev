@@ -39,7 +39,7 @@ tmp<surfaceScalarField> phiF2;
     volScalarField D(fluid.D());
 
     // Phase-1 turbulent dispersion and particle-pressure flux
-    surfaceScalarField Df1
+    tmp<surfaceScalarField> DbyA1
     (
         fvc::interpolate
         (
@@ -48,20 +48,13 @@ tmp<surfaceScalarField> phiF2;
     );
 
     // Phase-2 turbulent dispersion and particle-pressure flux
-    surfaceScalarField Df2
+    tmp<surfaceScalarField> DbyA2
     (
         fvc::interpolate
         (
             rAU2*(D + phase2.turbulence().pPrime())
         )
     );
-
-    // Cache the net diffusivity for implicit diffusion treatment in the
-    // phase-fraction equation
-    if (implicitPhasePressure)
-    {
-        fluid.pPrimeByA() = Df1 + Df2;
-    }
 
     // Lift and wall-lubrication forces
     volVectorField F(fluid.F());
@@ -72,16 +65,24 @@ tmp<surfaceScalarField> phiF2;
     // Phase-1 dispersion, lift and wall-lubrication flux
     phiF1 =
     (
-        Df1*snGradAlpha1
+        DbyA1()*snGradAlpha1
       + (fvc::interpolate(rAU1*F) & mesh.Sf())
     );
 
-    // Phase-1 dispersion, lift and wall-lubrication flux
+    // Phase-2 dispersion, lift and wall-lubrication flux
     phiF2 =
     (
-      - Df2*snGradAlpha1
+      - DbyA2()*snGradAlpha1
       - (fvc::interpolate(rAU2*F) & mesh.Sf())
     );
+
+    // Cache the phase diffusivities for implicit treatment in the
+    // phase-fraction equation
+    if (implicitPhasePressure)
+    {
+        phase1.DbyA(DbyA1);
+        phase2.DbyA(DbyA2);
+    }
 }
 
 
@@ -89,7 +90,7 @@ tmp<surfaceScalarField> phiF2;
 while (pimple.correct())
 {
     // Update continuity errors due to temperature changes
-    #include "correctContErrs.H"
+    fluid.correct();
 
     // Correct fixed-flux BCs to be consistent with the velocity BCs
     MRF.correctBoundaryFlux(U1, phi1);
@@ -277,14 +278,14 @@ while (pimple.correct())
     {
         pEqnComp1 =
             (
-                phase1.continuityError()
+                phase1.continuityError() - fluid.dmdt()
               - fvc::Sp(fvc::ddt(alpha1) + fvc::div(alphaPhi1), rho1)
             )/rho1
           + (alpha1*psi1/rho1)*correction(fvm::ddt(p_rgh));
 
         pEqnComp2 =
             (
-                phase2.continuityError()
+                phase2.continuityError() + fluid.dmdt()
               - fvc::Sp(fvc::ddt(alpha2) + fvc::div(alphaPhi2), rho2)
             )/rho2
           + (alpha2*psi2/rho2)*correction(fvm::ddt(p_rgh));
@@ -338,12 +339,15 @@ while (pimple.correct())
                 phi2 = phi - alphaf1*phir;
             }
 
-            // Compressibility correction for phase-fraction equations
-            fluid.dgdt() =
-            (
-                alpha1*(pEqnComp2 & p_rgh)
-              - alpha2*(pEqnComp1 & p_rgh)
-            );
+            // Set the phase dilatation rates
+            if (phase1.compressible())
+            {
+                phase1.divU(-pEqnComp1 & p_rgh);
+            }
+            if (phase2.compressible())
+            {
+                phase2.divU(-pEqnComp2 & p_rgh);
+            }
 
             // Optionally relax pressure for velocity correction
             p_rgh.relax();

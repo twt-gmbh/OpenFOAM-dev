@@ -42,7 +42,7 @@ divSchemes
 
     div(phi,T)      $turbulence;
 
-    div((nuEff*dev(T(grad(U))))) Gauss linear;
+    div((nuEff*dev2(T(grad(U))))) Gauss linear;
 }
 
 laplacianSchemes
@@ -60,10 +60,9 @@ snGradSchemes
     default         corrected;
 }
 
-fluxRequired
+wallDist
 {
-    default         no;
-    p_rgh             ;
+    method meshWave;
 }
 
 // ************************************************************************* //

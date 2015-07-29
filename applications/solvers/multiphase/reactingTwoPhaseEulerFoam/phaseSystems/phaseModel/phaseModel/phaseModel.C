@@ -134,4 +134,46 @@ bool Foam::phaseModel::read()
 }
 
 
+bool Foam::phaseModel::compressible() const
+{
+    return false;
+}
+
+
+const Foam::volScalarField& Foam::phaseModel::divU() const
+{
+    notImplemented("Foam::phaseModel::divU()");
+    return volScalarField::null();
+}
+
+
+void Foam::phaseModel::divU(const volScalarField& divU)
+{
+    WarningIn("phaseModel::divU(const volScalarField& divU)")
+        << "Attempt to set the dilatation rate of an incompressible phase"
+        << endl;
+}
+
+
+const Foam::volScalarField& Foam::phaseModel::K() const
+{
+    notImplemented("Foam::phaseModel::K()");
+    return volScalarField::null();
+}
+
+
+const Foam::surfaceScalarField& Foam::phaseModel::DbyA() const
+{
+    return surfaceScalarField::null();
+}
+
+
+void Foam::phaseModel::DbyA(const tmp<surfaceScalarField>& DbyA)
+{
+    WarningIn("phaseModel::DbyA(const surfaceScalarField& DbyA)")
+        << "Attempt to set the dilatation rate of an incompressible phase"
+        << endl;
+}
+
+
 // ************************************************************************* //

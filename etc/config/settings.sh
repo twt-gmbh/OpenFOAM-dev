@@ -125,6 +125,16 @@ Linux)
         export WM_LDFLAGS='-m64'
         ;;
 
+    ppc64le)
+        WM_ARCH=linuxPPC64le
+        export WM_COMPILER_LIB_ARCH=64
+        export WM_CC='gcc'
+        export WM_CXX='g++'
+        export WM_CFLAGS='-m64 -fPIC'
+        export WM_CXXFLAGS='-m64 -fPIC'
+        export WM_LDFLAGS='-m64'
+        ;;
+
     *)
         echo Unknown processor type `uname -m` for Linux 1>&2
         ;;
@@ -443,7 +453,7 @@ SYSTEMMPI)
             echo "Warning in $WM_PROJECT_DIR/etc/config/settings.sh:" 1>&2
             echo "    MPI_ARCH_INC is not set. Example:" 1>&2
             echo 1>&2
-            echo "        export MPI_ARCH_INC=\"-I\$MPI_ROOT/include\"" 1>&2
+            echo "        export MPI_ARCH_INC=\"-isystem \$MPI_ROOT/include\"" 1>&2
             echo 1>&2
         fi
 

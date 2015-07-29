@@ -30,7 +30,7 @@ Description
 
     Sub-models include:
     - turbulence modelling, i.e. laminar, RAS or LES
-    - run-time selectable finite volume options, e.g. MRF, explicit porosity
+    - run-time selectable MRF and finite volume options, e.g. explicit porosity
 
 \*---------------------------------------------------------------------------*/
 
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 
     pimpleControl pimple(mesh);
 
+    #include "createTimeControls.H"
     #include "createFields.H"
     #include "createMRF.H"
     #include "createFvOptions.H"

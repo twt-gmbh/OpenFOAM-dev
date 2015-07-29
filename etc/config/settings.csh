@@ -96,6 +96,16 @@ case Linux:
         setenv WM_LDFLAGS '-m64'
         breaksw
 
+    case ppc64le:
+        setenv WM_ARCH linuxPPC64le
+        setenv WM_COMPILER_LIB_ARCH 64
+        setenv WM_CC 'gcc'
+        setenv WM_CXX 'g++'
+        setenv WM_CFLAGS '-m64 -fPIC'
+        setenv WM_CXXFLAGS '-m64 -fPIC'
+        setenv WM_LDFLAGS '-m64'
+        breaksw
+
     default:
         echo Unknown processor type `uname -m` for Linux
         breaksw
@@ -416,7 +426,7 @@ case SYSTEMMPI:
             echo "Warning in $WM_PROJECT_DIR/etc/config/settings.csh:"
             echo "    MPI_ARCH_INC is not set. Example:"
             echo
-            echo '        setenv MPI_ARCH_INC "-I$MPI_ROOT/include"'
+            echo '        setenv MPI_ARCH_INC "-isystem $MPI_ROOT/include"'
             echo
         endif
 
