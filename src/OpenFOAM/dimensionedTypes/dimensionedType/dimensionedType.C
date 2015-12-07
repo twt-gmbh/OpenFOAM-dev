@@ -54,10 +54,8 @@ void Foam::dimensioned<Type>::initialize(Istream& is)
 
         if (dims != dimensions_)
         {
-            FatalIOErrorIn
+            FatalIOErrorInFunction
             (
-                "dimensioned<Type>::dimensioned"
-                "(const word&, const dimensionSet&, Istream&)",
                 is
             ) << "The dimensions " << dims
               << " provided do not match the required dimensions "
@@ -178,8 +176,8 @@ Foam::dimensioned<Type> Foam::dimensioned<Type>::lookupOrDefault
 (
     const word& name,
     const dictionary& dict,
-    const Type& defaultValue,
-    const dimensionSet& dims
+    const dimensionSet& dims,
+    const Type& defaultValue
 )
 {
     if (dict.found(name))
@@ -194,16 +192,40 @@ Foam::dimensioned<Type> Foam::dimensioned<Type>::lookupOrDefault
 
 
 template<class Type>
+Foam::dimensioned<Type> Foam::dimensioned<Type>::lookupOrDefault
+(
+    const word& name,
+    const dictionary& dict,
+    const Type& defaultValue
+)
+{
+    return lookupOrDefault(name, dict, dimless, defaultValue);
+}
+
+
+template<class Type>
 Foam::dimensioned<Type> Foam::dimensioned<Type>::lookupOrAddToDict
 (
     const word& name,
     dictionary& dict,
-    const Type& defaultValue,
-    const dimensionSet& dims
+    const dimensionSet& dims,
+    const Type& defaultValue
 )
 {
     Type value = dict.lookupOrAddDefault<Type>(name, defaultValue);
     return dimensioned<Type>(name, dims, value);
+}
+
+
+template<class Type>
+Foam::dimensioned<Type> Foam::dimensioned<Type>::lookupOrAddToDict
+(
+    const word& name,
+    dictionary& dict,
+    const Type& defaultValue
+)
+{
+    return lookupOrAddToDict(name, dict, dimless, defaultValue);
 }
 
 
@@ -513,7 +535,7 @@ Foam::dimensioned<Type> Foam::max
 {
     if (dt1.dimensions() != dt2.dimensions())
     {
-        FatalErrorIn("max(const dimensioned<Type>&, const dimensioned<Type>&)")
+        FatalErrorInFunction
             << "dimensions of arguments are not equal"
             << abort(FatalError);
     }
@@ -536,7 +558,7 @@ Foam::dimensioned<Type> Foam::min
 {
     if (dt1.dimensions() != dt2.dimensions())
     {
-        FatalErrorIn("min(const dimensioned<Type>&, const dimensioned<Type>&)")
+        FatalErrorInFunction
             << "dimensions of arguments are not equal"
             << abort(FatalError);
     }

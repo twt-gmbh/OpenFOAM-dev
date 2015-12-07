@@ -77,7 +77,7 @@ public:
             gas
         };
 
-        //- Species element
+        //- species element
         struct specieElement
         {
             word elementName;
@@ -208,8 +208,14 @@ private:
         //- List of the reactions
         ReactionList<gasHThermoPhysics> reactions_;
 
+        //- Transport properties dictionary
+        dictionary transportDict_;
+
         //- Flag to indicate that file is in new format
         Switch newFormat_;
+
+        //- Tolerance for element imbalance in a reaction
+        scalar imbalanceTol_;
 
 
     // Private Member Functions
@@ -299,9 +305,9 @@ private:
         void read
         (
             const fileName& CHEMKINFileName,
-            const fileName& thermoFileName
+            const fileName& thermoFileName,
+            const fileName& transportFileName
         );
-
 
         //- Disallow default bitwise copy construct
         chemkinReader(const chemkinReader&);
@@ -321,8 +327,9 @@ public:
         //- Construct from CHEMKIN III file name
         chemkinReader
         (
-            const fileName& chemkinFile,
             speciesTable& species,
+            const fileName& CHEMKINFileName,
+            const fileName& transportFileName,
             const fileName& thermoFileName = fileName::null,
             const bool newFormat = false
         );

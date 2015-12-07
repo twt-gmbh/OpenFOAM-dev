@@ -45,7 +45,7 @@ void Foam::fieldMinMax::output
 
     if (location_)
     {
-        file<< obr_.time().value();
+        writeTime(file());
 
         writeTabbed(file, fieldName);
 
@@ -267,14 +267,8 @@ void Foam::fieldMinMax::calcMinMaxFields
             }
             default:
             {
-                FatalErrorIn
-                (
-                    "Foam::fieldMinMax::calcMinMaxFields"
-                    "("
-                        "const word&, "
-                        "const modeType&"
-                    ")"
-                )   << "Unknown min/max mode: " << modeTypeNames_[mode_]
+                FatalErrorInFunction
+                    << "Unknown min/max mode: " << modeTypeNames_[mode_]
                     << exit(FatalError);
             }
         }

@@ -24,9 +24,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "kOmegaSSTSato.H"
-#include "addToRunTimeSelectionTable.H"
+#include "fvOptions.H"
 #include "twoPhaseSystem.H"
-#include "dragModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -76,8 +75,6 @@ kOmegaSSTSato<BasicTurbulenceModel>::kOmegaSSTSato
 {
     if (type == typeName)
     {
-        // Cannot correct nut yet: construction of the phases is not complete
-        // correctNut();
         this->printCoeffs(type);
     }
 }
@@ -155,6 +152,9 @@ void kOmegaSSTSato<BasicTurbulenceModel>::correctNut()
        *(mag(this->U_ - gasTurbulence.U()));
 
     this->nut_.correctBoundaryConditions();
+    fv::options::New(this->mesh_).correct(this->nut_);
+
+    BasicTurbulenceModel::correctNut();
 }
 
 

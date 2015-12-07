@@ -35,6 +35,7 @@ namespace Foam
     defineTypeNameAndDebug(residuals, 0);
 }
 
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::residuals::residuals
@@ -55,16 +56,8 @@ Foam::residuals::residuals
     if (!isA<fvMesh>(obr_))
     {
         active_ = false;
-        WarningIn
-        (
-            "residuals::residuals"
-            "("
-                "const word&, "
-                "const objectRegistry&, "
-                "const dictionary&, "
-                "const bool"
-            ")"
-        )   << "No fvMesh available, deactivating " << name_
+        WarningInFunction
+            << "No fvMesh available, deactivating " << name_
             << endl;
     }
 
@@ -98,7 +91,13 @@ void Foam::residuals::writeFileHeader(const label i)
 
         forAll(fieldSet_, fieldI)
         {
-            writeTabbed(file(), fieldSet_[fieldI]);
+            const word& fieldName = fieldSet_[fieldI];
+
+            writeFileHeader<scalar>(fieldName);
+            writeFileHeader<vector>(fieldName);
+            writeFileHeader<sphericalTensor>(fieldName);
+            writeFileHeader<symmTensor>(fieldName);
+            writeFileHeader<tensor>(fieldName);
         }
 
         file() << endl;
@@ -107,21 +106,15 @@ void Foam::residuals::writeFileHeader(const label i)
 
 
 void Foam::residuals::execute()
-{
-    // Do nothing - only valid on write
-}
+{}
 
 
 void Foam::residuals::end()
-{
-    // Do nothing - only valid on write
-}
+{}
 
 
 void Foam::residuals::timeSet()
-{
-    // Do nothing - only valid on write
-}
+{}
 
 
 void Foam::residuals::write()
@@ -132,7 +125,7 @@ void Foam::residuals::write()
 
         if (Pstream::master())
         {
-            file()<< obr_.time().value();
+            writeTime(file());
 
             forAll(fieldSet_, fieldI)
             {
@@ -149,5 +142,6 @@ void Foam::residuals::write()
         }
     }
 }
+
 
 // ************************************************************************* //

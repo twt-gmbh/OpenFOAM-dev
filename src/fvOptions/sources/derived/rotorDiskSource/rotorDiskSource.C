@@ -101,7 +101,7 @@ void Foam::fv::rotorDiskSource::checkData()
                 }
                 default:
                 {
-                    FatalErrorIn("void rotorDiskSource::checkData()")
+                    FatalErrorInFunction
                         << "Unknown inlet velocity type" << abort(FatalError);
                 }
             }
@@ -111,7 +111,7 @@ void Foam::fv::rotorDiskSource::checkData()
         }
         default:
         {
-            FatalErrorIn("void rotorDiskSource::checkData()")
+            FatalErrorInFunction
                 << "Source cannot be used with '"
                 << selectionModeTypeNames_[selectionMode()]
                 << "' mode.  Please use one of: " << nl
@@ -334,9 +334,9 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
 
             coeffs_.lookup("refDirection") >> refDir;
 
-            localAxesRotation_.reset
+            cylindrical_.reset
             (
-                new localAxesRotation
+                new cylindrical
                 (
                     mesh_,
                     axis,
@@ -357,9 +357,9 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
             coeffs_.lookup("axis") >> axis;
             coeffs_.lookup("refDirection") >> refDir;
 
-            localAxesRotation_.reset
+            cylindrical_.reset
             (
-                new localAxesRotation
+                new cylindrical
                 (
                     mesh_,
                     axis,
@@ -374,7 +374,7 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
         }
         default:
         {
-            FatalErrorIn("rotorDiskSource::createCoordinateSystem()")
+            FatalErrorInFunction
                 << "Unknown geometryMode " << geometryModeTypeNames_[gm]
                 << ". Available geometry modes include "
                 << geometryModeTypeNames_ << exit(FatalError);
@@ -454,12 +454,8 @@ Foam::tmp<Foam::vectorField> Foam::fv::rotorDiskSource::inflowVelocity
         }
         default:
         {
-            FatalErrorIn
-            (
-                "Foam::tmp<Foam::vectorField> "
-                "Foam::fv::rotorDiskSource::inflowVelocity"
-                "(const volVectorField&) const"
-            )   << "Unknown inlet flow specification" << abort(FatalError);
+            FatalErrorInFunction
+                << "Unknown inlet flow specification" << abort(FatalError);
         }
     }
 
@@ -491,7 +487,7 @@ Foam::fv::rotorDiskSource::rotorDiskSource
     invR_(cells_.size(), I),
     area_(cells_.size(), 0.0),
     coordSys_(false),
-    localAxesRotation_(),
+    cylindrical_(),
     rMax_(0.0),
     trim_(trimModel::New(*this, coeffs_)),
     blade_(coeffs_.subDict("blade")),

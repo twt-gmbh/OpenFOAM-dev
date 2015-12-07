@@ -27,7 +27,7 @@ License
 #include "vectorTools.H"
 #include "triangle.H"
 #include "tetrahedron.H"
-#include "const_circulator.H"
+#include "ConstCirculator.H"
 #include "DelaunayMeshTools.H"
 #include "OBJstream.H"
 
@@ -149,11 +149,8 @@ bool Foam::conformalVoronoiMesh::regionIsInside
     }
     else
     {
-        WarningIn
-        (
-            "Foam::conformalVoronoiMesh::regionIsInside"
-            "(volTypeA, normalA, volTypeB, normalB, masterPtVec)"
-        )   << ""
+        WarningInFunction
+            << ""
             << endl;
 
         return false;
@@ -183,8 +180,8 @@ void Foam::conformalVoronoiMesh::createEdgePointGroupByCirculating
 
     const List<sideVolumeType>& normalVolumeTypes = feMesh.normalVolumeTypes();
 
-    const_circulator<labelList> circ(edNormalIs);
-    const_circulator<labelList> circNormalDirs(feNormalDirections);
+    ConstCirculator<labelList> circ(edNormalIs);
+    ConstCirculator<labelList> circNormalDirs(feNormalDirections);
 
     Map<Foam::point> masterPoints;
     Map<vertexType> masterPointsTypes;
@@ -252,16 +249,8 @@ void Foam::conformalVoronoiMesh::createEdgePointGroupByCirculating
                 }
                 else
                 {
-                    WarningIn
-                    (
-                        "Foam::conformalVoronoiMesh::"
-                        "createEdgePointGroupByCirculating"
-                        "("
-                        "    const extendedFeatureEdgeMesh&,"
-                        "    const pointIndexHit&,"
-                        "    DynamicList<Vb>&"
-                        ")"
-                    )   << "Failed to insert flat/open edge as volType is "
+                    WarningInFunction
+                        << "Failed to insert flat/open edge as volType is "
                         << extendedFeatureEdgeMesh::sideVolumeTypeNames_
                            [
                                volType
@@ -314,16 +303,8 @@ void Foam::conformalVoronoiMesh::createEdgePointGroupByCirculating
             }
             else
             {
-                WarningIn
-                (
-                    "Foam::conformalVoronoiMesh::"
-                    "createEdgePointGroupByCirculating"
-                    "("
-                    "    const extendedFeatureEdgeMesh&,"
-                    "    const pointIndexHit&,"
-                    "    DynamicList<Vb>&"
-                    ")"
-                )   << "Faces are parallel but master point is not inside"
+                WarningInFunction
+                    << "Faces are parallel but master point is not inside"
                     << endl;
             }
         }

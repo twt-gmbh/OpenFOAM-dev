@@ -144,7 +144,7 @@ void Foam::forces::writeFileHeader(const label i)
     }
     else
     {
-        FatalErrorIn("void Foam::forces::writeFileHeader(const label)")
+        FatalErrorInFunction
             << "Unhandled file index: " << i
             << abort(FatalError);
     }
@@ -165,7 +165,7 @@ void Foam::forces::initialise()
         if (!obr_.foundObject<volVectorField>(fDName_))
         {
             active_ = false;
-            WarningIn("void Foam::forces::initialise()")
+            WarningInFunction
                 << "Could not find " << fDName_ << " in database." << nl
                 << "    De-activating forces."
                 << endl;
@@ -185,7 +185,7 @@ void Foam::forces::initialise()
         {
             active_ = false;
 
-            WarningIn("void Foam::forces::initialise()")
+            WarningInFunction
                 << "Could not find " << UName_ << ", " << pName_;
 
             if (rhoName_ != "rhoInf")
@@ -255,7 +255,7 @@ Foam::tmp<Foam::volSymmTensorField> Foam::forces::devRhoReff() const
     }
     else
     {
-        FatalErrorIn("forces::devRhoReff()")
+        FatalErrorInFunction
             << "No valid model for viscous stress calculation"
             << exit(FatalError);
 
@@ -294,7 +294,7 @@ Foam::tmp<Foam::volScalarField> Foam::forces::mu() const
     }
     else
     {
-        FatalErrorIn("forces::mu()")
+        FatalErrorInFunction
             << "No valid model for dynamic viscosity calculation"
             << exit(FatalError);
 
@@ -341,7 +341,7 @@ Foam::scalar Foam::forces::rho(const volScalarField& p) const
     {
         if (rhoName_ != "rhoInf")
         {
-            FatalErrorIn("forces::rho(const volScalarField& p)")
+            FatalErrorInFunction
                 << "Dynamic pressure is expected but kinematic is provided."
                 << exit(FatalError);
         }
@@ -402,7 +402,8 @@ void Foam::forces::writeForces()
         << "        porous   : " << sum(moment_[2])
         << endl;
 
-    file(0) << obr_.time().value() << tab << setw(1) << '('
+    writeTime(file(0));
+    file(0) << tab << setw(1) << '('
         << sum(force_[0]) << setw(1) << ' '
         << sum(force_[1]) << setw(1) << ' '
         << sum(force_[2]) << setw(3) << ") ("
@@ -420,7 +421,8 @@ void Foam::forces::writeForces()
         vectorField localMomentT(coordSys_.localVector(moment_[1]));
         vectorField localMomentP(coordSys_.localVector(moment_[2]));
 
-        file(0) << obr_.time().value() << tab << setw(1) << '('
+        writeTime(file(0));
+        file(0) << tab << setw(1) << '('
             << sum(localForceN) << setw(1) << ' '
             << sum(localForceT) << setw(1) << ' '
             << sum(localForceP) << setw(3) << ") ("
@@ -456,7 +458,7 @@ void Foam::forces::writeBins()
         }
     }
 
-    file(1) << obr_.time().value();
+    writeTime(file(1));
 
     forAll(f[0], i)
     {
@@ -560,16 +562,8 @@ Foam::forces::forces
     else
     {
         active_ = false;
-        WarningIn
-        (
-            "Foam::forces::forces"
-            "("
-                "const word&, "
-                "const objectRegistry&, "
-                "const dictionary&, "
-                "const bool"
-            ")"
-        )   << "No fvMesh available, deactivating " << name_
+        WarningInFunction
+            << "No fvMesh available, deactivating " << name_
             << endl;
     }
 
@@ -694,10 +688,8 @@ void Foam::forces::read(const dictionary& dict)
 
             if (nBin_ < 0)
             {
-                FatalIOErrorIn
-                (
-                    "void Foam::forces::read(const dictionary&)", dict
-                )   << "Number of bins (nBin) must be zero or greater"
+                FatalIOErrorInFunction(dict)
+                    << "Number of bins (nBin) must be zero or greater"
                     << exit(FatalIOError);
             }
             else if ((nBin_ == 0) || (nBin_ == 1))
@@ -913,7 +905,7 @@ void Foam::forces::calcForcesMoment()
 
         if (models.empty())
         {
-            WarningIn("void Foam::forces::calcForcesMoment()")
+            WarningInFunction
                 << "Porosity effects requested, but no porosity models found "
                 << "in the database"
                 << endl;

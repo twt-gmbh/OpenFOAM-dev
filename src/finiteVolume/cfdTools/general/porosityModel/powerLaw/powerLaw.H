@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2014 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -64,8 +64,6 @@ class powerLaw
 :
     public porosityModel
 {
-private:
-
     // Private data
 
         //- C0 coefficient
@@ -128,7 +126,7 @@ public:
     // Member Functions
 
         //- Transform the model data wrt mesh changes
-        virtual void calcTranformModelData();
+        virtual void calcTransformModelData();
 
         //- Calculate the porosity force
         virtual void calcForce
@@ -154,7 +152,7 @@ public:
         virtual void correct
         (
             const fvVectorMatrix& UEqn,
-            volTensorField& AU            
+            volTensorField& AU
         ) const;
 
 

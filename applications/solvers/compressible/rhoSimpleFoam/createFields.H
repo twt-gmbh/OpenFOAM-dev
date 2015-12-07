@@ -52,8 +52,8 @@ dimensionedScalar rhoMax
     (
         "rhoMax",
         simple.dict(),
-        GREAT,
-        dimDensity
+        dimDensity,
+        GREAT
     )
 );
 
@@ -63,15 +63,15 @@ dimensionedScalar rhoMin
     (
         "rhoMin",
         simple.dict(),
-        0,
-        dimDensity
+        dimDensity,
+        0
     )
 );
 
 Info<< "Creating turbulence model\n" << endl;
 autoPtr<compressible::RASModel> turbulence
 (
-    compressible::RASModel::New
+    compressible::New<compressible::RASModel>
     (
         rho,
         U,

@@ -41,7 +41,13 @@ Foam::RASModels::kineticTheoryModel::kineticTheoryModel
     const word& type
 )
 :
-    eddyViscosity<RASModel<PhaseCompressibleTurbulenceModel<phaseModel> > >
+    eddyViscosity
+    <
+        RASModel<EddyDiffusivity<ThermalDiffusivity
+        <
+            PhaseCompressibleTurbulenceModel<phaseModel>
+        > > >
+    >
     (
         type,
         alpha,
@@ -183,7 +189,10 @@ bool Foam::RASModels::kineticTheoryModel::read()
     (
         eddyViscosity
         <
-            RASModel<PhaseCompressibleTurbulenceModel<phaseModel> >
+            RASModel<EddyDiffusivity<ThermalDiffusivity
+            <
+                PhaseCompressibleTurbulenceModel<phaseModel>
+            > > >
         >::read()
     )
     {
@@ -210,7 +219,7 @@ bool Foam::RASModels::kineticTheoryModel::read()
 Foam::tmp<Foam::volScalarField>
 Foam::RASModels::kineticTheoryModel::k() const
 {
-    notImplemented("kineticTheoryModel::k()");
+    NotImplemented;
     return nut_;
 }
 
@@ -218,7 +227,7 @@ Foam::RASModels::kineticTheoryModel::k() const
 Foam::tmp<Foam::volScalarField>
 Foam::RASModels::kineticTheoryModel::epsilon() const
 {
-    notImplemented("kineticTheoryModel::epsilon()");
+    NotImplemented;
     return nut_;
 }
 
@@ -339,7 +348,8 @@ void Foam::RASModels::kineticTheoryModel::correct()
     const volScalarField& rho = phase_.rho();
     const surfaceScalarField& alphaRhoPhi = alphaRhoPhi_;
     const volVectorField& U = U_;
-    const volVectorField& Uc_ = phase_.fluid().otherPhase(phase_).U();
+    const volVectorField& Uc_ =
+        refCast<const twoPhaseSystem>(phase_.fluid()).otherPhase(phase_).U();
 
     const scalar sqrtPi = sqrt(constant::mathematical::pi);
     dimensionedScalar ThetaSmall("ThetaSmall", Theta_.dimensions(), 1.0e-6);
@@ -381,7 +391,10 @@ void Foam::RASModels::kineticTheoryModel::correct()
         );
 
         // Drag
-        volScalarField beta(phase_.fluid().drag(phase_).K());
+        volScalarField beta
+        (
+            refCast<const twoPhaseSystem>(phase_.fluid()).drag(phase_).K()
+        );
 
         // Eq. 3.25, p. 50 Js = J1 - J2
         volScalarField J1("J1", 3.0*beta);
@@ -515,6 +528,7 @@ void Foam::RASModels::kineticTheoryModel::correct()
         nut_ += frictionalStressModel_->nu
         (
             alpha,
+            alphaMinFriction_,
             alphaMax_,
             pf/rho,
             D

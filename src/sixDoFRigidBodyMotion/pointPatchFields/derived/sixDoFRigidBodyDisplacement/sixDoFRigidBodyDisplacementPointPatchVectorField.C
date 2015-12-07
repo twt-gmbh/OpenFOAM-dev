@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -178,11 +178,7 @@ void sixDoFRigidBodyDisplacementPointPatchVectorField::updateCoeffs()
         {
             if (lookupGravity_ == -2)
             {
-                FatalErrorIn
-                (
-                    "void sixDoFRigidBodyDisplacementPointPatchVectorField"
-                    "::updateCoeffs()"
-                )
+                FatalErrorInFunction
                     << "Specifying the value of g in this boundary condition "
                     << "when g is available from the database is considered "
                     << "a fatal error to avoid the possibility of inconsistency"
@@ -204,17 +200,13 @@ void sixDoFRigidBodyDisplacementPointPatchVectorField::updateCoeffs()
     const pointPatch& ptPatch = this->patch();
 
     // Store the motion state at the beginning of the time-step
+    bool firstIter = false;
     if (curTimeIndex_ != t.timeIndex())
     {
         motion_.newTime();
         curTimeIndex_ = t.timeIndex();
+        firstIter = true;
     }
-
-    // Patch force data is valid for the current positions, so
-    // calculate the forces on the motion object from this data, then
-    // update the positions
-
-    motion_.updatePosition(t.deltaTValue(), t.deltaT0Value());
 
     dictionary forcesDict;
 
@@ -241,11 +233,13 @@ void sixDoFRigidBodyDisplacementPointPatchVectorField::updateCoeffs()
     // scalar ramp = min(max((t.value() - 5)/10, 0), 1);
     scalar ramp = 1.0;
 
-    motion_.updateAcceleration
+    motion_.update
     (
+        firstIter,
         ramp*(f.forceEff() + motion_.mass()*g_),
         ramp*(f.momentEff() + motion_.mass()*(motion_.momentArm() ^ g_)),
-        t.deltaTValue()
+        t.deltaTValue(),
+        t.deltaT0Value()
     );
 
     Field<vector>::operator=

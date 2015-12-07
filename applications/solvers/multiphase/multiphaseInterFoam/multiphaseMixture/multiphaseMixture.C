@@ -288,7 +288,7 @@ Foam::multiphaseMixture::surfaceTensionForce() const
 
             if (sigma == sigmas_.end())
             {
-                FatalErrorIn("multiphaseMixture::surfaceTensionForce() const")
+                FatalErrorInFunction
                     << "Cannot find interface " << interfacePair(alpha1, alpha2)
                     << " in list of sigma values"
                     << exit(FatalError);
@@ -442,12 +442,8 @@ void Foam::multiphaseMixture::correctContactAngle
 
             if (tp == acap.thetaProps().end())
             {
-                FatalErrorIn
-                (
-                    "multiphaseMixture::correctContactAngle"
-                    "(const phase& alpha1, const phase& alpha2, "
-                    "fvPatchVectorFieldField& nHatb) const"
-                )   << "Cannot find interface " << interfacePair(alpha1, alpha2)
+                FatalErrorInFunction
+                    << "Cannot find interface " << interfacePair(alpha1, alpha2)
                     << "\n    in table of theta properties for patch "
                     << acap.patch().name()
                     << exit(FatalError);
@@ -573,14 +569,14 @@ void Foam::multiphaseMixture::solveAlphas
     surfaceScalarField phic(mag(phi_/mesh_.magSf()));
     phic = min(cAlpha*phic, max(phic));
 
-    PtrList<surfaceScalarField> phiAlphaCorrs(phases_.size());
+    PtrList<surfaceScalarField> alphaPhiCorrs(phases_.size());
     int phasei = 0;
 
     forAllIter(PtrDictionary<phase>, phases_, iter)
     {
         phase& alpha = iter();
 
-        phiAlphaCorrs.set
+        alphaPhiCorrs.set
         (
             phasei,
             new surfaceScalarField
@@ -595,7 +591,7 @@ void Foam::multiphaseMixture::solveAlphas
             )
         );
 
-        surfaceScalarField& phiAlphaCorr = phiAlphaCorrs[phasei];
+        surfaceScalarField& alphaPhiCorr = alphaPhiCorrs[phasei];
 
         forAllIter(PtrDictionary<phase>, phases_, iter2)
         {
@@ -605,7 +601,7 @@ void Foam::multiphaseMixture::solveAlphas
 
             surfaceScalarField phir(phic*nHatf(alpha, alpha2));
 
-            phiAlphaCorr += fvc::flux
+            alphaPhiCorr += fvc::flux
             (
                 -fvc::flux(-phir, alpha2, alpharScheme),
                 alpha,
@@ -619,7 +615,7 @@ void Foam::multiphaseMixture::solveAlphas
             geometricOneField(),
             alpha,
             phi_,
-            phiAlphaCorr,
+            alphaPhiCorr,
             zeroField(),
             zeroField(),
             1,
@@ -630,7 +626,7 @@ void Foam::multiphaseMixture::solveAlphas
         phasei++;
     }
 
-    MULES::limitSum(phiAlphaCorrs);
+    MULES::limitSum(alphaPhiCorrs);
 
     rhoPhi_ = dimensionedScalar("0", dimensionSet(1, 0, -1, 0, 0), 0);
 
@@ -652,19 +648,19 @@ void Foam::multiphaseMixture::solveAlphas
     {
         phase& alpha = iter();
 
-        surfaceScalarField& phiAlpha = phiAlphaCorrs[phasei];
-        phiAlpha += upwind<scalar>(mesh_, phi_).flux(alpha);
+        surfaceScalarField& alphaPhi = alphaPhiCorrs[phasei];
+        alphaPhi += upwind<scalar>(mesh_, phi_).flux(alpha);
 
         MULES::explicitSolve
         (
             geometricOneField(),
             alpha,
-            phiAlpha,
+            alphaPhi,
             zeroField(),
             zeroField()
         );
 
-        rhoPhi_ += phiAlpha*alpha.rho();
+        rhoPhi_ += alphaPhi*alpha.rho();
 
         Info<< alpha.name() << " volume fraction, min, max = "
             << alpha.weightedAverage(mesh_.V()).value()

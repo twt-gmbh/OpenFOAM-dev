@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -68,7 +68,7 @@ Foam::curvedEdge::curvedEdge(const curvedEdge& c)
 
 Foam::autoPtr<Foam::curvedEdge> Foam::curvedEdge::clone() const
 {
-    notImplemented("curvedEdge::clone() const");
+    NotImplemented;
     return autoPtr<curvedEdge>(NULL);
 }
 
@@ -93,7 +93,7 @@ Foam::autoPtr<Foam::curvedEdge> Foam::curvedEdge::New
 
     if (cstrIter == IstreamConstructorTablePtr_->end())
     {
-        FatalErrorIn("curvedEdge::New(const pointField&, Istream&)")
+        FatalErrorInFunction
             << "Unknown curvedEdge type "
             << edgeType << nl << nl
             << "Valid curvedEdge types are" << endl
@@ -117,11 +117,11 @@ Foam::pointField Foam::curvedEdge::appendEndPoints
 {
     pointField allKnots(otherKnots.size() + 2);
 
-    // start/end knots
+    // Start/end knots
     allKnots[0] = points[start];
     allKnots[otherKnots.size() + 1] = points[end];
 
-    // intermediate knots
+    // Intermediate knots
     forAll(otherKnots, knotI)
     {
         allKnots[knotI+1] = otherKnots[knotI];
@@ -135,7 +135,7 @@ Foam::pointField Foam::curvedEdge::appendEndPoints
 
 void Foam::curvedEdge::operator=(const curvedEdge&)
 {
-    notImplemented("void curvedEdge::operator=(const curvedEdge&)");
+    NotImplemented;
 }
 
 

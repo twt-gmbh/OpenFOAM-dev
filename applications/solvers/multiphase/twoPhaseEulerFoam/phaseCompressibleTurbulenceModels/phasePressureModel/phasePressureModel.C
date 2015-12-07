@@ -40,7 +40,13 @@ Foam::RASModels::phasePressureModel::phasePressureModel
     const word& type
 )
 :
-    eddyViscosity<RASModel<PhaseCompressibleTurbulenceModel<phaseModel> > >
+    eddyViscosity
+    <
+        RASModel<EddyDiffusivity<ThermalDiffusivity
+        <
+            PhaseCompressibleTurbulenceModel<phaseModel>
+        > > >
+    >
     (
         type,
         alpha,
@@ -87,7 +93,10 @@ bool Foam::RASModels::phasePressureModel::read()
     (
         eddyViscosity
         <
-            RASModel<PhaseCompressibleTurbulenceModel<phaseModel> >
+            RASModel<EddyDiffusivity<ThermalDiffusivity
+            <
+                PhaseCompressibleTurbulenceModel<phaseModel>
+            > > >
         >::read()
     )
     {
@@ -108,7 +117,7 @@ bool Foam::RASModels::phasePressureModel::read()
 Foam::tmp<Foam::volScalarField>
 Foam::RASModels::phasePressureModel::k() const
 {
-    notImplemented("phasePressureModel::k()");
+    NotImplemented;
     return nut_;
 }
 
@@ -116,7 +125,7 @@ Foam::RASModels::phasePressureModel::k() const
 Foam::tmp<Foam::volScalarField>
 Foam::RASModels::phasePressureModel::epsilon() const
 {
-    notImplemented("phasePressureModel::epsilon()");
+    NotImplemented;
     return nut_;
 }
 

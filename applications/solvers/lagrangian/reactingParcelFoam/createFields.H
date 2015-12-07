@@ -17,7 +17,7 @@ const word inertSpecie(thermo.lookup("inertSpecie"));
 
 if (!composition.contains(inertSpecie))
 {
-    FatalErrorIn(args.executable())
+    FatalErrorInFunction
         << "Specified inert specie '" << inertSpecie << "' not found in "
         << "species list. Available species:" << composition.species()
         << exit(FatalError);
@@ -64,8 +64,8 @@ dimensionedScalar rhoMax
     (
         "rhoMax",
         pimple.dict(),
-        GREAT,
-        dimDensity
+        dimDensity,
+        GREAT
     )
 );
 
@@ -75,8 +75,8 @@ dimensionedScalar rhoMin
     (
         "rhoMin",
         pimple.dict(),
-        0,
-        dimDensity
+        dimDensity,
+        0
     )
 );
 

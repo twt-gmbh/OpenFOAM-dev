@@ -35,27 +35,31 @@ namespace Foam
     defineTypeNameAndDebug(turbulenceFields, 0);
 
     template<>
-    const char* NamedEnum<turbulenceFields::compressibleField, 6>::names[] =
+    const char* NamedEnum<turbulenceFields::compressibleField, 8>::names[] =
     {
-        "R",
-        "devRhoReff",
+        "k",
+        "epsilon",
         "mut",
         "muEff",
         "alphat",
-        "alphaEff"
+        "alphaEff",
+        "R",
+        "devRhoReff"
     };
-    const NamedEnum<turbulenceFields::compressibleField, 6>
+    const NamedEnum<turbulenceFields::compressibleField, 8>
         turbulenceFields::compressibleFieldNames_;
 
     template<>
-    const char* NamedEnum<turbulenceFields::incompressibleField, 4>::names[] =
+    const char* NamedEnum<turbulenceFields::incompressibleField, 6>::names[] =
     {
-        "R",
-        "devReff",
+        "k",
+        "epsilon",
         "nut",
-        "nuEff"
+        "nuEff",
+        "R",
+        "devReff"
     };
-    const NamedEnum<turbulenceFields::incompressibleField, 4>
+    const NamedEnum<turbulenceFields::incompressibleField, 6>
         turbulenceFields::incompressibleFieldNames_;
 
     const word turbulenceFields::modelName = turbulenceModel::propertiesName;
@@ -76,7 +80,7 @@ bool Foam::turbulenceFields::compressible()
     }
     else
     {
-        WarningIn("Foam::word& Foam::turbulenceFields::compressible() const")
+        WarningInFunction
             << "Turbulence model not found in database, deactivating";
         active_ = false;
     }
@@ -108,16 +112,8 @@ Foam::turbulenceFields::turbulenceFields
     else
     {
         active_ = false;
-        WarningIn
-        (
-            "turbulenceFields::turbulenceFields"
-            "("
-                "const word&, "
-                "const objectRegistry&, "
-                "const dictionary&, "
-                "const bool"
-            ")"
-        )   << "No fvMesh available, deactivating " << name_
+        WarningInFunction
+            << "No fvMesh available, deactivating " << name_
             << endl;
     }
 }
@@ -174,14 +170,14 @@ void Foam::turbulenceFields::execute()
             const word& f = iter.key();
             switch (compressibleFieldNames_[f])
             {
-                case cfR:
+                case cfK:
                 {
-                    processField<symmTensor>(f, model.R());
+                    processField<scalar>(f, model.k());
                     break;
                 }
-                case cfDevRhoReff:
+                case cfEpsilon:
                 {
-                    processField<symmTensor>(f, model.devRhoReff());
+                    processField<scalar>(f, model.epsilon());
                     break;
                 }
                 case cfMut:
@@ -204,9 +200,19 @@ void Foam::turbulenceFields::execute()
                     processField<scalar>(f, model.alphaEff());
                     break;
                 }
+                case cfR:
+                {
+                    processField<symmTensor>(f, model.R());
+                    break;
+                }
+                case cfDevRhoReff:
+                {
+                    processField<symmTensor>(f, model.devRhoReff());
+                    break;
+                }
                 default:
                 {
-                    FatalErrorIn("void Foam::turbulenceFields::execute()")
+                    FatalErrorInFunction
                         << "Invalid field selection" << abort(FatalError);
                 }
             }
@@ -222,14 +228,14 @@ void Foam::turbulenceFields::execute()
             const word& f = iter.key();
             switch (incompressibleFieldNames_[f])
             {
-                case ifR:
+                case ifK:
                 {
-                    processField<symmTensor>(f, model.R());
+                    processField<scalar>(f, model.k());
                     break;
                 }
-                case ifDevReff:
+                case ifEpsilon:
                 {
-                    processField<symmTensor>(f, model.devReff());
+                    processField<scalar>(f, model.epsilon());
                     break;
                 }
                 case ifNut:
@@ -242,9 +248,19 @@ void Foam::turbulenceFields::execute()
                     processField<scalar>(f, model.nuEff());
                     break;
                 }
+                case ifR:
+                {
+                    processField<symmTensor>(f, model.R());
+                    break;
+                }
+                case ifDevReff:
+                {
+                    processField<symmTensor>(f, model.devReff());
+                    break;
+                }
                 default:
                 {
-                    FatalErrorIn("void Foam::turbulenceFields::execute()")
+                    FatalErrorInFunction
                         << "Invalid field selection" << abort(FatalError);
                 }
             }
@@ -263,15 +279,11 @@ void Foam::turbulenceFields::end()
 
 
 void Foam::turbulenceFields::timeSet()
-{
-    // Do nothing
-}
+{}
 
 
 void Foam::turbulenceFields::write()
-{
-    // Do nothing
-}
+{}
 
 
 // ************************************************************************* //

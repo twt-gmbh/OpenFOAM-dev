@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -140,7 +140,7 @@ void Foam::globalMeshData::calcSharedPoints() const
      || sharedPointAddrPtr_.valid()
     )
     {
-        FatalErrorIn("globalMeshData::calcSharedPoints()")
+        FatalErrorInFunction
             << "Shared point addressing already done" << abort(FatalError);
     }
 
@@ -307,7 +307,7 @@ void Foam::globalMeshData::calcSharedEdges() const
      || sharedEdgeAddrPtr_.valid()
     )
     {
-        FatalErrorIn("globalMeshData::calcSharedEdges()")
+        FatalErrorInFunction
             << "Shared edge addressing already done" << abort(FatalError);
     }
 
@@ -845,7 +845,7 @@ Foam::label Foam::globalMeshData::findTransform
 
     if (remoteTransformI == -1 || localTransformI == -1)
     {
-        FatalErrorIn("globalMeshData::findTransform(..)")
+        FatalErrorInFunction
             << "Problem. Cannot find " << remotePoint
             << " or " << localPoint  << " "
             << coupledPatch().localPoints()[localPoint]
@@ -1177,10 +1177,8 @@ void Foam::globalMeshData::calcGlobalEdgeOrientation() const
             );
             if (stat == 0)
             {
-                FatalErrorIn
-                (
-                    "globalMeshData::calcGlobalEdgeOrientation() const"
-                )   << "problem : my edge:" << e
+                FatalErrorInFunction
+                    << "problem : my edge:" << e
                     << " in master points:" << masterE
                     << " v.s. masterEdgeVerts:" << masterEdgeVerts[edgeI]
                     << exit(FatalError);
@@ -2746,22 +2744,51 @@ void Foam::globalMeshData::updateMesh()
         Pout<< "globalMeshData : merge dist:" << tolDim << endl;
     }
 
+    // *** Temporary hack to avoid problems with overlapping communication
+    // *** between these reductions and the calculation of deltaCoeffs
+    label comm = UPstream::allocateCommunicator
+    (
+        UPstream::worldComm,
+        identity(UPstream::nProcs()),
+        true
+    );
+
     // Total number of faces.
-    nTotalFaces_ = returnReduce(mesh_.nFaces(), sumOp<label>());
+    nTotalFaces_ = returnReduce
+    (
+        mesh_.nFaces(),
+        sumOp<label>(),
+        Pstream::msgType(),
+        comm
+    );
 
     if (debug)
     {
         Pout<< "globalMeshData : nTotalFaces_:" << nTotalFaces_ << endl;
     }
 
-    nTotalCells_ = returnReduce(mesh_.nCells(), sumOp<label>());
+    nTotalCells_ = returnReduce
+    (
+        mesh_.nCells(),
+        sumOp<label>(),
+        Pstream::msgType(),
+        comm
+    );
 
     if (debug)
     {
         Pout<< "globalMeshData : nTotalCells_:" << nTotalCells_ << endl;
     }
 
-    nTotalPoints_ = returnReduce(mesh_.nPoints(), sumOp<label>());
+    nTotalPoints_ = returnReduce
+    (
+        mesh_.nPoints(),
+        sumOp<label>(),
+        Pstream::msgType(),
+        comm
+    );
+
+    UPstream::freeCommunicator(comm);
 
     if (debug)
     {
